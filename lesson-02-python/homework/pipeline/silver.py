@@ -16,15 +16,71 @@ write_silver_partitioned():
 """
 
 from __future__ import annotations
-
+import os
 import polars as pl
 
 from . import config
 
+#Функція для зберігання паркету
+def Save_to_parquet(df: pl.DataFrame, s_path: str):
+    output_dir = os.path.dirname(s_path)
+
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    df.write_parquet(s_path, compression="zstd")
+
+#зчитуємо паркет
+df=pl.scan_parquet(config.BRONZE_FILE)
+
 
 def build_silver(bronze: pl.DataFrame) -> pl.DataFrame:
-    raise NotImplementedError("Завдання 2: реалізуйте silver згідно з CONTRACTS.md")
 
+  #для себе робимо список для фільтації null
+  filter_null_col = ["repo_name", "event_id", "created_at"]
 
+  #фільтруємо данні згідно задач
+  df_res = (df.drop_nulls(subset=filter_null_col)
+            .filter(pl.col("event_type")
+            .is_in(config.TARGET_EVENT_TYPES) & 
+              (pl.col("repo_name") !="")).unique(subset="event_id")
+            .collect()
+  )
+  #вивід рузультатів для перевірки
+  print("\n*** 2 CHECKPOINT SILVER ***")
+  print(f"Кількість рядків: {df_res.height}")
+
+  types_count = df_res["event_type"].n_unique()
+  print(f"кількість типів подій:  {types_count}")
+
+  nullcount = df_res.select(pl.col(filter_null_col).null_count())
+  print(f"Кількість null в ключах: {nullcount}")
+
+  if df_res["event_id"].n_unique() == df_res.height:
+    print("всі event_id унікальні")  
+  else:
+    print("event_id НЕ унікальні")       
+
+  print("Кількість по кожному з типу:")
+  count = df_res.group_by(pl.col("event_type")).len()
+  print(count) 
+  Save_to_parquet(df_res, config.SILVER_FILE)
+  
+  return df_res
+
+#-------------------------------------------------------------#
 def write_silver_partitioned(silver: pl.DataFrame) -> None:
-    raise NotImplementedError("Завдання 3: запишіть партиціонований silver за event_type")
+  
+  print("\n*** 3 CHECKPOINT SILVER ***")
+  df = pl.scan_parquet(config.SILVER_FILE).collect()
+
+  output_dir = os.path.dirname(config.SILVER_PARTITIONED_DIR)
+  if output_dir:
+    os.makedirs(config.SILVER_PARTITIONED_DIR, exist_ok=True)
+  
+  df.write_parquet(config.SILVER_PARTITIONED_DIR, partition_by="event_type", compression="zstd")
+
+  print("Перевірка партицій:")
+  df_check = pl.scan_parquet(f"{config.SILVER_PARTITIONED_DIR}/**/*.parquet", hive_partitioning=True).collect()
+  print(f"кількість партицій: {df_check["event_type"].n_unique()}; кількість рядків: {df_check.height}")
+  
+
