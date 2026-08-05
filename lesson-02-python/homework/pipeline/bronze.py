@@ -13,38 +13,27 @@ TODO (Завдання 1): реалізуйте build_bronze().
 """
 
 from __future__ import annotations
-import os
+
 import polars as pl
+
 from . import config
-
-#Функція для зберігання паркету
-def Save_to_parquet(df: pl.DataFrame, s_path: str):
-    output_dir = os.path.dirname(s_path)
-
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-    df.write_parquet(s_path, compression="zstd")
-
 
 
 def build_bronze() -> pl.DataFrame:
-  file_path = config.LANDING_FILE
 
-  #читаємо файл
-  df = pl.scan_ndjson(file_path, schema=config.LANDING_SCHEMA)
-  
-  #читаємо DataFrame по кожному рядку та записуємо нову структуру
-  df_res = df.select([
+  df = pl.scan_ndjson(config.LANDING_FILE, schema=config.LANDING_SCHEMA)
+
+  df_bronze = df.select([
       pl.col("id").alias("event_id"),
       pl.col("type").alias("event_type"),
-      pl.col("actor").struct.field("id").cast(pl.Int64).alias("actor_id"),
+      pl.col("actor").struct.field("id").alias("actor_id"),
       pl.col("actor").struct.field("login").alias("actor_login"),
-      pl.col("repo").struct.field("id").cast(pl.Int64).alias("repo_id"),
+      pl.col("repo").struct.field("id").alias("repo_id"),
       pl.col("repo").struct.field("name").alias("repo_name"),
       pl.col("created_at")
         .str.to_datetime("%Y-%m-%dT%H:%M:%SZ", time_zone="UTC")
         .alias("created_at"),
-      pl.col("public").cast(pl.Boolean).alias("public"),
+      pl.col("public").alias("public"),
       pl.col("payload").struct.field("action").alias("action"),
       pl.col("payload")
         .struct.field("commits")
@@ -53,13 +42,8 @@ def build_bronze() -> pl.DataFrame:
         .cast(pl.Int64)
         .alias("commit_count")
   ]).collect()
+
+  df_bronze.write_parquet(config.BRONZE_FILE, compression="zstd", mkdir=True)
   
-  print("\n*** 1 CHECKPOINT BRONZE ***")
-  #перевіряємо показники задачі
-  rows=df_res.height
-  event_types = df_res.select(pl.col("event_type").n_unique()).item()
-  null_dates = df_res.select(pl.col("created_at").null_count()).item()
-  print(f"Кількість пядків: {rows}; унікальних типів подій: {event_types}; Creates at NULLs: {null_dates}")
-  Save_to_parquet(df_res, config.BRONZE_FILE)
-  
-  return df_res
+  return df_bronze
+
