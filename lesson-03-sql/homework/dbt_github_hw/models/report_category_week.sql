@@ -14,8 +14,8 @@ SELECT
 	c.iso_week,
 	ec.category,
 	COUNT(*) AS events
-FROM main.stg_events AS se
-JOIN main.calendar AS c
+FROM {{ ref('stg_events') }} AS se
+JOIN {{ ref('calendar') }} AS c
 	ON se.event_date = c."day" 
 JOIN main.event_categories AS ec
 	ON se.event_type = ec.event_type 
