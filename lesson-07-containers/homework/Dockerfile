@@ -14,3 +14,36 @@
 # Скрипт app/gh_ingest.py — ДАНО, не редагуйте його.
 
 # TODO: реалізуйте Dockerfile тут.
+
+# Base with fixing tag
+FROM python:3.12-slim
+
+# No buffer logs
+ENV PYTHONUNBUFFERED=1
+
+# 3. Create non root user - appuser (UID 1000) and folder /cache
+RUN adduser --disabled-password --gecos "" --uid 1000 appuser \
+    && mkdir -p /cache \
+    && chown -R appuser:appuser /cache
+
+WORKDIR /workspace
+
+# Copying requirements.txt for cashing pip
+COPY app/requirements.txt ./app/requirements.txt
+RUN pip install --no-cache-dir -r ./app/requirements.txt
+
+# Copying python script
+COPY app/ ./app/
+
+# Access for work directory appuser
+RUN chown -R appuser:appuser /workspace
+
+# Selecting Upuser
+USER appuser
+
+# HEALTHCHECK
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD python -c "import psycopg, requests" || exit 1
+
+# ENTRYPOINT
+ENTRYPOINT ["python", "app/gh_ingest.py"]
