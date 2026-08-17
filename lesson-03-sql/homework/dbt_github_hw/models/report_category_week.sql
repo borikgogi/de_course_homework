@@ -17,7 +17,7 @@ SELECT
 FROM {{ ref('stg_events') }} AS se
 JOIN {{ ref('calendar') }} AS c
 	ON se.event_date = c."day" 
-JOIN main.event_categories AS ec
+JOIN {{ ref('event_categories') }} AS ec
 	ON se.event_type = ec.event_type 
 WHERE 
 	c.iso_week =2
