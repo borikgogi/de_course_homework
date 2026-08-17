@@ -43,7 +43,7 @@ USER appuser
 
 # HEALTHCHECK
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD python -c "import psycopg, requests" || exit 1
+  CMD python -c "import os, psycopg; psycopg.connect(host=os.getenv('POSTGRES_HOST'), dbname=os.getenv('POSTGRES_DB'), user=os.getenv('POSTGRES_USER'), password=os.getenv('POSTGRES_PASSWORD'), port=os.getenv('POSTGRES_PORT', 5432)).close()"
 
 # ENTRYPOINT
 ENTRYPOINT ["python", "app/gh_ingest.py"]
