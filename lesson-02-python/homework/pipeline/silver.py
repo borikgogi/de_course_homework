@@ -21,10 +21,21 @@ import polars as pl
 
 from . import config
 
-
 def build_silver(bronze: pl.DataFrame) -> pl.DataFrame:
-    raise NotImplementedError("Завдання 2: реалізуйте silver згідно з CONTRACTS.md")
 
+  filter_null_col = ["repo_name", "event_id", "created_at"]
 
+  df_silver = (bronze.drop_nulls(subset=filter_null_col)
+            .filter(pl.col("event_type")
+            .is_in(config.TARGET_EVENT_TYPES) & 
+              (pl.col("repo_name") !="")).unique(subset="event_id")
+            #.collect()
+  )
+  df_silver.write_parquet(config.SILVER_FILE, compression="zstd", mkdir=True)
+  
+  return df_silver
+
+#-------------------------------------------------------------#
 def write_silver_partitioned(silver: pl.DataFrame) -> None:
-    raise NotImplementedError("Завдання 3: запишіть партиціонований silver за event_type")
+
+  silver.write_parquet(config.SILVER_PARTITIONED_DIR, partition_by="event_type", compression="zstd", mkdir=True)

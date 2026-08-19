@@ -16,14 +16,54 @@ import polars as pl
 
 from . import config
 
-
 def build_repo_activity(silver: pl.DataFrame) -> pl.DataFrame:
-    raise NotImplementedError("Завдання 4: реалізуйте repo_activity згідно з CONTRACTS.md")
+    df_repo_act=(silver
+        .group_by("repo_name")
+        .agg(
+            # Загальна кількість подій
+            pl.len().cast(pl.Int64).alias("event_count"),
+            pl.col("event_type").n_unique().cast(pl.Int64).alias("distinct_event_types"), 
+        )
+        .sort("event_count", descending=True)
+        #.collect()
+    )
+
+    df_repo_act.write_parquet(config.GOLD_REPO_ACTIVITY, compression="zstd", mkdir=True)
+
+    return df_repo_act
 
 
 def build_activity_per_minute(silver: pl.DataFrame) -> pl.DataFrame:
-    raise NotImplementedError("Завдання 5: реалізуйте activity_per_minute згідно з CONTRACTS.md")
+    df_activity_per_minute=(silver
+            .with_columns(
+                pl.col("created_at")
+                .cast(pl.Datetime("us", "UTC"))
+                .dt.truncate("1m")
+                .alias("minute")
+                )
+                .group_by("minute")
+                .agg(pl.len().cast(pl.Int64).alias("event_count"))
+                .sort("minute")
+                #.collect()
+            )
+
+    df_activity_per_minute.write_parquet(config.GOLD_ACTIVITY_PER_MINUTE, compression="zstd", mkdir=True)
+
+    return df_activity_per_minute
+
 
 
 def build_push_commits_by_repo(silver: pl.DataFrame) -> pl.DataFrame:
-    raise NotImplementedError("Завдання 6: реалізуйте push_commits_by_repo згідно з CONTRACTS.md")
+    df_push_commits_by_repo=(silver.lazy()
+            .filter(pl.col("event_type") == "PushEvent")
+            .group_by("repo_name")
+            .agg(
+                pl.len().cast(pl.Int64).alias("push_events"),
+                pl.col("commit_count").sum().cast(pl.Int64).alias("total_commits")
+                )
+            .collect()
+            )
+
+    df_push_commits_by_repo.write_parquet(config.GOLD_PUSH_COMMITS, compression="zstd", mkdir=True)
+
+    return df_push_commits_by_repo
