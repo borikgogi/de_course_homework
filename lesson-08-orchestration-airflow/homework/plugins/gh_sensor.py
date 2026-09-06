@@ -14,15 +14,37 @@
 """
 
 from __future__ import annotations
-
+import urllib.request
 from airflow.sensors.base import BaseSensorOperator
 
 
 class GHArchiveSensor(BaseSensorOperator):
-    def __init__(self, hour: int = 14, **kwargs) -> None:
+    """
+    Checks if GitHub Archive file is available for the logical date and hour via HTTP HEAD.
+    """
+
+    template_fields = ("hour",)
+
+    def __init__(self, hour: int = 14, **kwargs):
         super().__init__(**kwargs)
         self.hour = hour
 
     def poke(self, context) -> bool:
-        # TODO: HEAD-запит до gharchive за context["ds"] і self.hour; True, якщо 200.
-        raise NotImplementedError("Реалізуйте GHArchiveSensor.poke — див. SPEC.md")
+        ds = context["ds"]
+        url = f"https://data.gharchive.org/{ds}-{self.hour}.json.gz"
+        self.log.info("Checking availability for: %s", url)
+
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Airflow-GHArchive-Sensor/1.0"},
+                method="HEAD",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status == 200:
+                    self.log.info("Archive found for %s (%s:00 UTC)", ds, self.hour)
+                    return True
+                return False
+        except Exception as e:
+            self.log.info("Archive not ready at %s (error: %s)", url, e)
+            return False
