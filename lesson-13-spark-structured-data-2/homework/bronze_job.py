@@ -53,7 +53,10 @@ def main() -> None:
     table = "bronze.raw_events"
     exists = spark.catalog.tableExists(table)
     if exists:
-        already = {r["_source_file"] for r in spark.table(table).select("_source_file").distinct().collect()}
+        already = {
+            r["_source_file"]
+            for r in spark.table(table).select("_source_file").distinct().collect()
+        }
         raw = raw.filter(~F.col("_source_file").isin(list(already))) if already else raw
 
     new_rows = raw.count()
