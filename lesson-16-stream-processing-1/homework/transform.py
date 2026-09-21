@@ -20,7 +20,9 @@ def event_filter(event: dict) -> bool:
       * є публічними (`public` == True; якщо ключа немає — вважайте публічною).
     Усі інші події (інші типи, приватні) → False.
     """
-    raise NotImplementedError("Реалізуйте event_filter")
+    is_allowed_type = event.get("type") in ALLOWED_TYPES
+    is_public = event.get("public", True) is True
+    return bool(is_allowed_type and is_public)
 
 
 def flatten_event(event: dict) -> dict:
@@ -41,10 +43,25 @@ def flatten_event(event: dict) -> dict:
     повертайте None, коли джерельна подія їх не містить. Для payload_commit_count
     візьміть довжину списку payload["commits"], якщо він є, інакше None.
     """
-    raise NotImplementedError("Реалізуйте flatten_event")
+    payload = event.get("payload") or {}
+
+    commits = payload.get("commits")
+    payload_commit_count = len(commits) if isinstance(commits, list) else None
+
+    return {
+        "id": str(event["id"]),
+        "event_type": str(event["type"]),
+        "created_at": _to_millis(event["created_at"]),
+        "actor_login": str(event["actor"]["login"]),
+        "repo_name": str(event["repo"]["name"]),
+        "public": bool(event.get("public", True)),
+        "payload_action": payload.get("action"),
+        "payload_ref": payload.get("ref"),
+        "payload_commit_count": payload_commit_count,
+    }
 
 
 def _to_millis(created_at: str) -> int:
     """ISO-8601 ('2024-01-15T14:00:01Z') -> epoch-мілісекунди (int). Готова функція."""
-    dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    dt = datetime.fromisoformat(created_at)
     return int(dt.timestamp() * 1000)
