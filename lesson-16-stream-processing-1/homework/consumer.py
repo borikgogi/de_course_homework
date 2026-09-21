@@ -23,7 +23,11 @@ def update_counts(by_type: dict, by_repo: dict, event: dict) -> None:
       by_repo[repo_name]  += 1
     Ключі, яких ще немає, починаються з 0.
     """
-    raise NotImplementedError("Реалізуйте update_counts")
+    event_type = event["event_type"]
+    repo_name = event["repo_name"]
+
+    by_type[event_type] = by_type.get(event_type, 0) + 1
+    by_repo[repo_name] = by_repo.get(repo_name, 0) + 1
 
 
 def top_repos(by_repo: dict, n: int = 5) -> list:
@@ -33,7 +37,8 @@ def top_repos(by_repo: dict, n: int = 5) -> list:
     від найбільшого до найменшого. Однакові лічильники впорядкуйте за іменем
     репозиторію (щоб результат був детермінованим).
     """
-    raise NotImplementedError("Реалізуйте top_repos")
+    sorted_items = sorted(by_repo.items(), key=lambda item: (-item[1], item[0]))
+    return [[name, count] for name, count in sorted_items[:n]]
 
 
 def run_consumer() -> dict:
@@ -48,7 +53,57 @@ def run_consumer() -> dict:
        і запишіть його JSON у OUTPUT_PATH (створіть каталог через os.makedirs).
        Поверніть stats.
     """
-    raise NotImplementedError("Реалізуйте run_consumer")
+    conf = {
+        "bootstrap.servers": BOOTSTRAP_SERVERS,
+        "group.id": GROUP_ID,
+        "auto.offset.reset": "earliest",
+    }
+    consumer = Consumer(conf)
+    consumer.subscribe([TOPIC])
+
+    by_type = {}
+    by_repo = {}
+    total = 0
+    idle_count = 0
+
+    try:
+        while True:
+            msg = consumer.poll(1.0)
+
+            if msg is None:
+                idle_count += 1
+                if idle_count >= int(IDLE_LIMIT_SECONDS):
+                    break
+                continue
+
+            if msg.error():
+                continue
+
+            idle_count = 0
+            total += 1
+
+            raw_value = msg.value()
+            event = json.loads(
+                raw_value.decode("utf-8") if isinstance(raw_value, bytes) else raw_value
+            )
+            update_counts(by_type, by_repo, event)
+    finally:
+        consumer.close()
+
+    stats = {
+        "total": total,
+        "by_type": by_type,
+        "top_repos": top_repos(by_repo, 5),
+    }
+
+    output_dir = os.path.dirname(OUTPUT_PATH)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(stats, f, ensure_ascii=False, indent=2)
+
+    return stats
 
 
 if __name__ == "__main__":
