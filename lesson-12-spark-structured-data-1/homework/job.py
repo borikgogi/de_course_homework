@@ -204,7 +204,7 @@ def write_outputs(outputs: dict[str, tuple[DataFrame, str | None]]) -> None:
     for name, (df, partition_col) in outputs.items():
         path = f"{OUTPUT_DIR}/{name}"
         if partition_col is not None:
-            df.write.mode("overwrite").partitionBy(partition_col).parquet(path)
+            df.repartition(partition_col).write.mode("overwrite").partitionBy(partition_col).parquet(path)
         else:
             df.coalesce(1).write.mode("overwrite").parquet(path)
 
