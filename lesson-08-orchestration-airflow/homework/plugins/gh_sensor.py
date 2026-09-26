@@ -48,3 +48,4 @@ class GHArchiveSensor(BaseSensorOperator):
         except Exception as e:
             self.log.info("Archive not ready at %s (error: %s)", url, e)
             return False
+        

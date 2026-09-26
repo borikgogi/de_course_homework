@@ -105,3 +105,4 @@ with DAG(
         >> load_to_duckdb_task
         >> notify_completion
     )
+    
