@@ -1,3 +1,5 @@
+{{ config(tags=["reconcile"]) }}
+-- depends_on: {{ ref('rides') }}
 -- Сума, списана billing-ом, дорівнює сумі з ride_completed (де відомі обидві).
 select ride_id, total_amount, payment_amount
 from {{ ref('fact_ride') }}
