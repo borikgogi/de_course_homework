@@ -4,7 +4,7 @@
 -- правила Silver, мають збігатися за кількістю з рядками silver.events.
 with bronze as (
     select count(distinct event_id) as n
-    from {{ source('bronze', 'raw_events') }}
+    from bronze.raw_events
     where source is distinct from 'loadtest'
       and occurred_at is not null
       and ride_id is not null
