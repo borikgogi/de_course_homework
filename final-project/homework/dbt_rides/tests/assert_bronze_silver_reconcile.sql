@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('events') }}
 {{ config(tags=['reconcile']) }}
 -- Жодна валідна подія не зникає між Bronze і Silver: унікальні event_id, що пройшли
 -- правила Silver, мають збігатися за кількістю з рядками silver.events.

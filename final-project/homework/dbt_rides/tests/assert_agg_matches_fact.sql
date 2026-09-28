@@ -1,3 +1,8 @@
+{{ config(tags=["reconcile"]) }}
+-- depends_on: {{ ref('events') }}
+-- depends_on: {{ ref('rides') }}
+-- depends_on: {{ ref('fact_ride') }}
+-- depends_on: {{ ref('agg_zone_hourly') }}
 -- Вітрина = перерахунок із fact_ride «з нуля», рядок у рядок. Ловить застарілі бакети:
 -- поїздка змінила зону (ride_started приїхав пізніше), а стара зона не оновилась.
 with expected as (

@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('events') }}
 -- Правило зон: те, що СТАЛОСЯ (ride_started / ride_completed), перекриває те, що ЗАМОВИЛИ.
 -- Перераховуємо очікуване напряму з silver.events — окремо від логіки моделі rides.
 with ev as (

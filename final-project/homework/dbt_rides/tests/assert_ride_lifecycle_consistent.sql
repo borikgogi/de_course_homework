@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('rides') }}
 -- Статус узгоджений із віхами, віхи йдуть у логічному порядку.
 select ride_id, status, requested_at, accepted_at, started_at, completed_at, cancelled_at, paid_at
 from {{ ref('rides') }}
