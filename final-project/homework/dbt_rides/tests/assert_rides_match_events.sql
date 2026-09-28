@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('events') }}
 -- Кожна поїздка з ride_requested у silver.events є в silver.rides — і навпаки.
 with requested as (
     select distinct ride_id from {{ ref('events') }} where event_type = 'ride_requested'

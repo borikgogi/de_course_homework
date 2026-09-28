@@ -1,3 +1,5 @@
+-- depends_on: {{ ref('events') }}
+-- depends_on: {{ ref('fact_ride') }}
 {{ config(tags=['reconcile']) }}
 -- Календарні дати Silver і Gold — за UTC, а не за часовим поясом сесії клієнта.
 -- Тести dbt запускаються з PGTZ=Pacific/Chatham (UTC+13:45): якщо модель робить
