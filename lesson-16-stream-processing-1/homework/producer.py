@@ -3,7 +3,7 @@
 import gzip
 import json
 import urllib.request
-from typing import Iterator
+from collections.abc import Iterator
 
 from confluent_kafka import Producer
 from icecream import ic
@@ -28,12 +28,15 @@ def iter_archive(url: str, max_raw: int) -> Iterator[dict]:
     filtering or flattening happens here — that is your job in transform.py.
     """
     request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        with gzip.GzipFile(fileobj=response) as gz:
-            for count, line in enumerate(gz):
-                if count >= max_raw:
-                    break
-                yield json.loads(line)
+
+    with (
+        urllib.request.urlopen(request, timeout=60) as response,
+        gzip.GzipFile(fileobj=response) as gz,
+    ):
+        for count, line in enumerate(gz):
+            if count >= max_raw:
+                break
+            yield json.loads(line)
 
 
 def build_producer() -> Producer:
@@ -43,7 +46,12 @@ def build_producer() -> Producer:
     BOOTSTRAP_SERVERS. Увімкніть idempotent producer (`enable.idempotence`) і
     `acks="all"`, щоб ретраї не створювали дублікатів.
     """
-    raise NotImplementedError("Реалізуйте build_producer")
+    conf = {
+        "bootstrap.servers": BOOTSTRAP_SERVERS,
+        "enable.idempotence": True,
+        "acks": "all",
+    }
+    return Producer(conf)
 
 
 def run_producer() -> int:
@@ -58,7 +66,27 @@ def run_producer() -> int:
     5. Після кожного produce() викликайте producer.poll(0) (не блокуюче).
     6. Наприкінці producer.flush(30). Поверніть к-сть надісланих подій.
     """
-    raise NotImplementedError("Реалізуйте run_producer")
+    producer = build_producer()
+    sent_count = 0
+
+    for raw_event in iter_archive(ARCHIVE_URL, MAX_RAW):
+        if not event_filter(raw_event):
+            continue
+
+        flat_event = flatten_event(raw_event)
+        key_bytes = flat_event["repo_name"].encode("utf-8")
+        value_bytes = json.dumps(flat_event, ensure_ascii=False).encode("utf-8")
+
+        producer.produce(
+            topic=TOPIC,
+            key=key_bytes,
+            value=value_bytes,
+        )
+        producer.poll(0)
+        sent_count += 1
+
+    producer.flush(30)
+    return sent_count
 
 
 if __name__ == "__main__":
